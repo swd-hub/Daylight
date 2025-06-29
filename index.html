@@ -51,7 +51,7 @@
   </div>
 
   <script>
-    document.getElementById("btn").addEventListener("click", async () => {
+document.getElementById("btn").addEventListener("click", async () => {
   const startDate = new Date(document.getElementById("start-date").value);
   const endDate = new Date(document.getElementById("end-date").value);
   const lat = 35.3667;
@@ -75,12 +75,11 @@
     try {
       const res = await fetch(url);
       const data = await res.json();
-      const sunrise = new Date(data.results.sunrise);
-      const sunset = new Date(data.results.sunset);
-
-      // JSTに変換
-      sunrise.setHours(sunrise.getHours() + 9);
-      sunset.setHours(sunset.getHours() + 9);
+      // UTC→JST変換はミリ秒加算で行う
+      const sunriseUTC = new Date(data.results.sunrise);
+      const sunsetUTC  = new Date(data.results.sunset);
+      const sunrise = new Date(sunriseUTC.getTime() + 9 * 60 * 60 * 1000);
+      const sunset  = new Date(sunsetUTC.getTime()  + 9 * 60 * 60 * 1000);
 
       // フォーマット関数
       const formatTime = d =>
@@ -94,9 +93,8 @@
         return `${h}時間${m}分${s}秒`;
       };
 
-      // 日照時間（秒単位）
+      // 日照時間・夜間長（秒）
       const daylightSec = (sunset - sunrise) / 1000;
-      // 夜間長（秒単位）
       const nightSec = 24 * 60 * 60 - daylightSec;
 
       // テーブルに追加
@@ -140,6 +138,8 @@
       }]
     },
     options: {
+      responsive: false,
+      maintainAspectRatio: false,
       scales: {
         x: { title: { display: true, text: '日付' } },
         y: { title: { display: true, text: '夜間長（時間）' }, min: 0, max: 24 }
