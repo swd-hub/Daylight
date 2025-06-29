@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>出雲市の日出・日入・日照時間</title>
+  <title>出雲市の日出・日入・夜間長</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
  <style>
 /* 画面表示用スタイル */
@@ -141,7 +141,7 @@ input[type="date"] {
 </style>
 </head>
 <body>
-  <h1>出雲市の日出・日入・日照時間（JST）</h1>
+  <h1>出雲市の日出・日入・夜間長（JST）</h1>
   <label>開始日:
     <input type="date" id="start-date" value="2024-12-14">
   </label>
@@ -157,7 +157,7 @@ input[type="date"] {
           <th>日付</th>
           <th>日出（JST）</th>
           <th>日没（JST）</th>
-          <th>日照時間</th>
+          <th>昼間長</th>
           <th>夜間長</th>
         </tr>
       </thead>
@@ -220,7 +220,7 @@ input[type="date"] {
           const sunriseJST = formatTimeJST(data.results.sunrise);
           const sunsetJST = formatTimeJST(data.results.sunset);
 
-          // 日照時間・夜間長（秒単位）※差分はUTCでOK
+          // 昼間長・夜間長（秒単位）※差分はUTCでOK
           const sunriseDate = new Date(data.results.sunrise);
           const sunsetDate = new Date(data.results.sunset);
           const daylightSec = (sunsetDate - sunriseDate) / 1000;
@@ -276,12 +276,12 @@ input[type="date"] {
             legend: { display: false }
           },
           scales: {
-            x: { title: { display: true, text: '日付', font: {size: 14} }, ticks: {font:{size:13}} },
+            x: { title: { display: true, text: '日付', font: {size: 16} }, ticks: {font:{size:15}} },
             y: {
-              title: { display: true, text: '夜間長（時間）', font: {size: 14} },
+              title: { display: true, text: '夜間長（時間）', font: {size: 16} },
               min: 8,
               max: 16,
-              ticks: { stepSize: 2, font:{size:13} }
+              ticks: { stepSize: 2, font:{size:15} }
             }
           }
         }
