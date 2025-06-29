@@ -40,13 +40,15 @@
 
     function pad0(n) { return n < 10 ? '0' + n : n; }
 
-// JST変換（ISO8601 UTC → JST）
 function toJSTTimeStr(dtstr) {
   if (!dtstr) return "-";
-  const utc = new Date(dtstr);
-  if (isNaN(utc.getTime())) return "-";
-  const jst = new Date(utc.getTime() + 9 * 60 * 60 * 1000);
-  return pad0(jst.getHours()) + ":" + pad0(jst.getMinutes()) + ":" + pad0(jst.getSeconds());
+  const utc = new Date(dtstr); // dtstrには "+00:00" があるのでUTCとして解釈される
+  const jstHour = utc.getUTCHours() + 9;
+  const jst = new Date(utc);
+  jst.setUTCHours(jstHour); // JSTで表現
+  return pad0(jst.getUTCHours()) + ":" + pad0(jst.getUTCMinutes()) + ":" + pad0(jst.getUTCSeconds());
+}
+turn pad0(jst.getHours()) + ":" + pad0(jst.getMinutes()) + ":" + pad0(jst.getSeconds());
 }
 
     // 日照時間・夜間長計算
