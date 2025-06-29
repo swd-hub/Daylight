@@ -98,6 +98,7 @@ input[type="date"] {
     display: flex;
     align-items: center;
     justify-content: center;
+    position: relative;
 }
 #daylightChart {
     width: 100% !important;
@@ -108,6 +109,27 @@ input[type="date"] {
     display: block;
     border-radius: 4px;
     box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+
+#loadingMessage {
+    position: absolute;
+    left: 0; top: 0; width: 100%; height: 100%;
+    background: rgba(255,255,255,0.8);
+    display: none; align-items: center; justify-content: center; z-index: 2;
+    font-size: 2em; color: #2976d6;
+    font-weight: bold;
+    flex-direction: column;
+}
+#loadingMessage .spinner {
+    margin-bottom: 16px;
+    width: 48px; height: 48px;
+    border: 6px solid #cce0fa;
+    border-top: 6px solid #2976d6;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  100% { transform: rotate(360deg); }
 }
 
 /* ファイルリスト例 */
@@ -165,6 +187,10 @@ input[type="date"] {
     </table>
 
     <div class="chart-container">
+      <div id="loadingMessage">
+        <div class="spinner"></div>
+        読み込み中...
+      </div>
       <canvas id="daylightChart"></canvas>
     </div>
   </div>
@@ -191,6 +217,9 @@ input[type="date"] {
     }
 
     document.getElementById("btn").addEventListener("click", async () => {
+      // ここでローディング表示
+      document.getElementById("loadingMessage").style.display = "flex";
+
       const startDate = new Date(document.getElementById("start-date").value);
       const endDate = new Date(document.getElementById("end-date").value);
       const lat = 35.3667;
@@ -251,47 +280,49 @@ input[type="date"] {
         }
       }
 
-     // グラフ表示
-const ctx = document.getElementById('daylightChart').getContext('2d');
-if(window.daylightChartObj){ window.daylightChartObj.destroy(); }
-window.daylightChartObj = new Chart(ctx, {
-  type: 'line',
-  data: {
-    labels: labels,
-    datasets: [{
-      label: '夜間長（時間）',
-      data: nightHours,
-      borderColor: '#2976d6',
-      backgroundColor: 'rgba(41, 118, 214, 0.13)',
-      pointBackgroundColor: '#2976d6',
-      pointRadius: 3,
-      spanGaps: true,
-      tension: 0.28
-    }]
-  },
-  options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false },
-      // ここを追加↓
-      title: {
-        display: true,
-        text: '夜間長（日没から日出）',
-        font: { size: 20 }
-      }
-    },
-    scales: {
-      x: { title: { display: true, text: '日付', font: {size: 16} }, ticks: {font:{size:15}} },
-      y: {
-        title: { display: true, text: '夜間長（時間）', font: {size: 16} },
-        min: 8,
-        max: 16,
-        ticks: { stepSize: 2, font:{size:15} }
-      }
-    }
-  }
-});
+      // グラフ表示
+      const ctx = document.getElementById('daylightChart').getContext('2d');
+      if(window.daylightChartObj){ window.daylightChartObj.destroy(); }
+      window.daylightChartObj = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: '夜間長（時間）',
+            data: nightHours,
+            borderColor: '#2976d6',
+            backgroundColor: 'rgba(41, 118, 214, 0.13)',
+            pointBackgroundColor: '#2976d6',
+            pointRadius: 3,
+            spanGaps: true,
+            tension: 0.28
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            title: {
+              display: true,
+              text: '夜間長（日没から日出）',
+              font: { size: 20 }
+            }
+          },
+          scales: {
+            x: { title: { display: true, text: '日付', font: {size: 16} }, ticks: {font:{size:15}} },
+            y: {
+              title: { display: true, text: '夜間長（時間）', font: {size: 16} },
+              min: 8,
+              max: 16,
+              ticks: { stepSize: 2, font:{size:15} }
+            }
+          }
+        }
+      });
+
+      // ローディング非表示
+      document.getElementById("loadingMessage").style.display = "none";
     });
   </script>
 </body>
