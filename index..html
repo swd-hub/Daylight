@@ -55,15 +55,17 @@
   </div>
 
   <script>
-    // JSTのYYYY-MM-DD 0:00でDateを生成
+    // JST「YYYY-MM-DD 0:00:00」を生成
     function getDateJST0(yyyyMMdd) {
-      return new Date(`${yyyyMMdd}T00:00:00+09:00`);
+      // ブラウザのDate生成で明示的にJSTに
+      return new Date(yyyyMMdd + 'T00:00:00+09:00');
     }
 
-    // JSTとして時刻表示
+    // JSTとして時刻表示（必ずJSTで表示する）
     function formatTimeJST(date) {
       if (!date || isNaN(date.getTime())) return "-";
-      return date.toLocaleTimeString("ja-JP", { hour12: false });
+      // UTC+9:00で表示
+      return date.toLocaleTimeString('ja-JP', { hour12: false, timeZone: 'Asia/Tokyo' });
     }
 
     // 秒→「X時間Y分Z秒」
