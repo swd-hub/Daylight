@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>出雲市の日出・日入・日照時間</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .flex-area {
+      display: flex;
+      justify-content: flex-start;
+      align-items: flex-start;
+      margin-top: 2em; /* 入力フォームとの間に2行分空白 */
+      gap: 2em;         /* 表とグラフの間のスペース */
+    }
+    #resultTable {
+      min-width: 420px;
+    }
+    #daylightChart {
+      background: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+  <h1>出雲市の日出・日入・日照時間（JST）</h1>
+  <label>開始日:
+    <input type="date" id="start-date" value="2024-12-14">
+  </label>
+  <label>終了日:
+    <input type="date" id="end-date" value="2024-12-17">
+  </label>
+  <button id="btn">取得</button>
+
+  <br><br> <!-- 入力フォームの下に2行空ける -->
+
+  <div class="flex-area">
+    <table id="resultTable" border="1">
+      <thead>
+        <tr>
+          <th>日付</th>
+          <th>日出（JST）</th>
+          <th>日没（JST）</th>
+          <th>日照時間</th>
+          <th>夜間長</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+<canvas id="daylightChart" width="250" height="150"></canvas>
+  </div>
+
+  <script>
+    document.getElementById("btn").addEventListener("click", async () => {
+  const startDate = new Date(document.getElementById("start-date").value);
+  const endDate = new Date(document.getElementById("end-date").value);
+  const lat = 35.3667;
+  const lon = 132.75;
+
+  // テーブル用
+  const tableBody = document.querySelector('#resultTable tbody');
+  tableBody.innerHTML = "";
+
+  // グラフ用
+  let labels = [];
+  let nightHours = [];
+
+  for (
+    let d = new Date(startDate);
+    d <= endDate;
+    d.setDate(d.getDate() + 1)
+  ) {
+    const dateStr = d.toISOString().slice(0, 10);
+    const url = `https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lon}&date=${dateStr}&formatted=0`;
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+      const sunrise = new Date(data.results.sunrise);
+      const sunset = new Date(data.results.sunset);
+
+      // JSTに変換
+      sunrise.setHours(sunrise.getHours() + 9);
+      sunset.setHours(sunset.getHours() + 9);
+
+      // フォーマット関数
+      const formatTime = d =>
+        `${d.getHours().toString().padStart(2, '0')}:` +
+        `${d.getMinutes().toString().padStart(2, '0')}:` +
+        `${d.getSeconds().toString().padStart(2, '0')}`;
+      const formatHMS = sec => {
+        const h = Math.floor(sec / 3600);
+        const m = Math.floor((sec % 3600) / 60);
+        const s = Math.floor(sec % 60);
+        return `${h}時間${m}分${s}秒`;
+      };
+
+      // 日照時間（秒単位）
+      const daylightSec = (sunset - sunrise) / 1000;
+      // 夜間長（秒単位）
+      const nightSec = 24 * 60 * 60 - daylightSec;
+
+      // テーブルに追加
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${dateStr}</td>
+        <td>${formatTime(sunrise)}</td>
+        <td>${formatTime(sunset)}</td>
+        <td>${formatHMS(daylightSec)}</td>
+        <td>${formatHMS(nightSec)}</td>
+      `;
+      tableBody.appendChild(tr);
+
+      // グラフ用
+      labels.push(dateStr);
+      nightHours.push(nightSec / 3600); // 時間単位(小数)
+
+    } catch (err) {
+      // エラー時もテーブルに表示
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td colspan="5">${dateStr} 取得エラー: ${err}</td>`;
+      tableBody.appendChild(tr);
+      labels.push(dateStr);
+      nightHours.push(null);
+    }
+  }
+
+  // グラフ表示
+  const ctx = document.getElementById('daylightChart').getContext('2d');
+  if(window.daylightChartObj){ window.daylightChartObj.destroy(); }
+  window.daylightChartObj = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '夜間長（時間）',
+        data: nightHours,
+        borderColor: 'blue',
+        backgroundColor: 'rgba(0, 100, 255, 0.2)',
+        spanGaps: true,
+      }]
+    },
+    options: {
+      scales: {
+        x: { title: { display: true, text: '日付' } },
+        y: { title: { display: true, text: '夜間長（時間）' }, min: 0, max: 24 }
+      }
+    }
+  });
+});
+  </script>
+</body>
+</html>
