@@ -4,6 +4,22 @@
   <meta charset="UTF-8">
   <title>出雲市の日出・日入・日照時間</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .flex-area {
+      display: flex;
+      justify-content: flex-start;
+      align-items: flex-start;
+      margin-top: 2em; /* 入力フォームとの間に2行分空白 */
+      gap: 2em;         /* 表とグラフの間のスペース */
+    }
+    #resultTable {
+      min-width: 420px;
+    }
+    #daylightChart {
+      background: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+  </style>
 </head>
 <body>
   <h1>出雲市の日出・日入・日照時間（JST）</h1>
@@ -15,22 +31,24 @@
   </label>
   <button id="btn">取得</button>
 
-  <!-- <pre id="result"></pre> 今回は表で示すので不要 -->
+  <br><br> <!-- 入力フォームの下に2行空ける -->
 
-  <table id="resultTable" border="1">
-    <thead>
-      <tr>
-        <th>日付</th>
-        <th>日出（JST）</th>
-        <th>日没（JST）</th>
-        <th>日照時間</th>
-        <th>夜間長</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+  <div class="flex-area">
+    <table id="resultTable" border="1">
+      <thead>
+        <tr>
+          <th>日付</th>
+          <th>日出（JST）</th>
+          <th>日没（JST）</th>
+          <th>日照時間</th>
+          <th>夜間長</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
 
-  <canvas id="daylightChart" width="600" height="400"></canvas>
+    <canvas id="daylightChart" width="500" height="400"></canvas>
+  </div>
 
   <script>
     document.getElementById("btn").addEventListener("click", async () => {
