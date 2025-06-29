@@ -55,20 +55,15 @@
   </div>
 
   <script>
-    // JSTのYYYY-MM-DDをUTCの前日15:00に変換
-    function getBaseDateUTC(yyyyMMdd) {
-      // JST 0時 → UTC前日15:00
-      // 例: 2025-06-25T00:00:00+09:00 → 2025-06-24T15:00:00Z
-      const [y, m, d] = yyyyMMdd.split('-').map(Number);
-      return new Date(Date.UTC(y, m - 1, d, -9, 0, 0));
+    // JSTのYYYY-MM-DD 0:00でDateを生成
+    function getDateJST0(yyyyMMdd) {
+      return new Date(`${yyyyMMdd}T00:00:00+09:00`);
     }
 
-    // JST時刻に変換して「HH:MM:SS」表示
+    // JSTとして時刻表示
     function formatTimeJST(date) {
       if (!date || isNaN(date.getTime())) return "-";
-      // UTC→JST補正
-      const jst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
-      return jst.toTimeString().slice(0,8);
+      return date.toLocaleTimeString("ja-JP", { hour12: false });
     }
 
     // 秒→「X時間Y分Z秒」
@@ -103,16 +98,15 @@
         d.setDate(d.getDate() + 1)
       ) {
         const yyyyMMdd = d.toISOString().slice(0, 10);
-
-        // JSTの0時をUTC基準で渡す
-        const baseDateUTC = getBaseDateUTC(yyyyMMdd);
+        // JST0時でDate生成
+        const dateJST = getDateJST0(yyyyMMdd);
 
         // SunCalcで天文データ
-        const sunTimes = SunCalc.getTimes(baseDateUTC, lat, lon);
-        const moonTimes = SunCalc.getMoonTimes(baseDateUTC, lat, lon);
-        const moonAge = getMoonAge(baseDateUTC);
+        const sunTimes = SunCalc.getTimes(dateJST, lat, lon);
+        const moonTimes = SunCalc.getMoonTimes(dateJST, lat, lon);
+        const moonAge = getMoonAge(dateJST);
 
-        // 日の出・日の入り（UTC→JST補正して表示）
+        // 日の出・日の入り
         const sunrise = sunTimes.sunrise;
         const sunset  = sunTimes.sunset;
 
@@ -120,7 +114,7 @@
         let daylightSec = (sunrise && sunset) ? (sunset - sunrise) / 1000 : null;
         let nightSec = (daylightSec !== null) ? 24 * 3600 - daylightSec : null;
 
-        // 月の出・月の入り（UTC→JST補正して表示）
+        // 月の出・月の入り
         const moonrise = moonTimes.rise;
         const moonset  = moonTimes.set;
 
