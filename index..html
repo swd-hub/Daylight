@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>出雲市の日出・日入・月出・月入・日照時間・夜間長・月齢</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/suncalc@1.9.0/suncalc.js"></script>
   <style>
     .flex-area {
       display: flex;
@@ -13,12 +14,13 @@
       gap: 2em;
     }
     #resultTable {
-      min-width: 520px;
+      min-width: 600px;
     }
     #daylightChart {
       background: #fff;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
+    th, td { text-align: center; }
   </style>
 </head>
 <body>
@@ -53,9 +55,29 @@
   </div>
 
   <script>
-    const weatherApiKey = "YOUR_API_KEY"; // ★ここにWeatherAPIで取得したAPIキーを入力
+    // JSTで時刻表示
+    function formatTimeJST(date) {
+      if (!date || isNaN(date.getTime())) return "-";
+      // toLocaleStringでJST明示
+      return date.toLocaleTimeString("ja-JP", { hour12: false });
+    }
 
-    document.getElementById("btn").addEventListener("click", async () => {
+    // 秒→「X時間Y分Z秒」
+    function formatHMS(sec) {
+      const h = Math.floor(sec / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      const s = Math.floor(sec % 60);
+      return `${h}時間${m}分${s}秒`;
+    }
+
+    // 月齢（日数）
+    function getMoonAge(date) {
+      const synodicMonth = 29.530588853;
+      const phase = SunCalc.getMoonIllumination(date).phase;
+      return (phase * synodicMonth).toFixed(1);
+    }
+
+    document.getElementById("btn").addEventListener("click", () => {
       const startDate = new Date(document.getElementById("start-date").value);
       const endDate = new Date(document.getElementById("end-date").value);
       const lat = 35.3667;
@@ -71,76 +93,43 @@
         d <= endDate;
         d.setDate(d.getDate() + 1)
       ) {
-        const dateStr = d.toISOString().slice(0, 10);
+        // JSTの0時
+        const yyyyMMdd = d.toISOString().slice(0, 10);
+        const dateJST = new Date(`${yyyyMMdd}T00:00:00+09:00`);
 
-        // 太陽データ
-        const sunUrl = `https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lon}&date=${dateStr}&formatted=0`;
+        // 太陽・月データ
+        const sunTimes = SunCalc.getTimes(dateJST, lat, lon);
+        const moonTimes = SunCalc.getMoonTimes(dateJST, lat, lon);
+        const moonAge = getMoonAge(dateJST);
 
-        // 月データ（WeatherAPI）
-        const moonUrl = `https://api.weatherapi.com/v1/astronomy.json?key=${weatherApiKey}&q=Izumo&dt=${dateStr}`;
+        // 日の出・日の入り
+        const sunrise = sunTimes.sunrise;
+        const sunset  = sunTimes.sunset;
 
-        try {
-          // 太陽
-          const sunRes = await fetch(sunUrl);
-          const sunData = await sunRes.json();
-          const sunriseUTC = new Date(sunData.results.sunrise);
-          const sunsetUTC = new Date(sunData.results.sunset);
-          const sunrise = new Date(sunriseUTC.getTime() + 9 * 60 * 60 * 1000);
-          const sunset = new Date(sunsetUTC.getTime() + 9 * 60 * 60 * 1000);
+        // 日照時間・夜間長
+        let daylightSec = (sunrise && sunset) ? (sunset - sunrise) / 1000 : null;
+        let nightSec = (daylightSec !== null) ? 24 * 3600 - daylightSec : null;
 
-          const formatTime = d =>
-            `${d.getHours().toString().padStart(2, '0')}:` +
-            `${d.getMinutes().toString().padStart(2, '0')}:` +
-            `${d.getSeconds().toString().padStart(2, '0')}`;
-          const formatHMS = sec => {
-            const h = Math.floor(sec / 3600);
-            const m = Math.floor((sec % 3600) / 60);
-            const s = Math.floor(sec % 60);
-            return `${h}時間${m}分${s}秒`;
-          };
+        // 月の出・月の入り
+        const moonrise = moonTimes.rise;
+        const moonset  = moonTimes.set;
 
-          const daylightSec = (sunset - sunrise) / 1000;
-          const nightSec = 24 * 60 * 60 - daylightSec;
+        // テーブル行
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${yyyyMMdd}</td>
+          <td>${formatTimeJST(sunrise)}</td>
+          <td>${formatTimeJST(sunset)}</td>
+          <td>${daylightSec !== null ? formatHMS(daylightSec) : "-"}</td>
+          <td>${nightSec !== null ? formatHMS(nightSec) : "-"}</td>
+          <td>${formatTimeJST(moonrise)}</td>
+          <td>${formatTimeJST(moonset)}</td>
+          <td>${moonAge}</td>
+        `;
+        tableBody.appendChild(tr);
 
-          // 月データ取得
-          let moonrise = "-";
-          let moonset = "-";
-          let moonage  = "-";
-          try {
-            const moonRes = await fetch(moonUrl);
-            const moonData = await moonRes.json();
-            moonrise = moonData.astronomy.astro.moonrise || "-";
-            moonset  = moonData.astronomy.astro.moonset  || "-";
-            // 月齢計算（新月からの日数）: WeatherAPIは直接は返さないが、moon_phaseからは正確でない
-            // 近似計算: 1970/1/7を基準日(既知の新月)として
-            moonage = getMoonAge(new Date(dateStr));
-          } catch (e) {
-            // エラー時は"-"
-          }
-
-          // テーブルに追加
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${dateStr}</td>
-            <td>${formatTime(sunrise)}</td>
-            <td>${formatTime(sunset)}</td>
-            <td>${formatHMS(daylightSec)}</td>
-            <td>${formatHMS(nightSec)}</td>
-            <td>${moonrise}</td>
-            <td>${moonset}</td>
-            <td>${moonage}</td>
-          `;
-          tableBody.appendChild(tr);
-
-          labels.push(dateStr);
-          nightHours.push(nightSec / 3600);
-        } catch (err) {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `<td colspan="8">${dateStr} 取得エラー: ${err}</td>`;
-          tableBody.appendChild(tr);
-          labels.push(dateStr);
-          nightHours.push(null);
-        }
+        labels.push(yyyyMMdd);
+        nightHours.push(nightSec !== null ? (nightSec / 3600) : null);
       }
 
       // グラフ
@@ -168,17 +157,6 @@
         }
       });
     });
-
-    // 月齢計算（近似式、JST 1970/1/7を既知の新月として）
-    function getMoonAge(date) {
-      // 1970/1/7 20:35(JST) 新月
-      const knownNewMoon = new Date(Date.UTC(1970, 0, 7, 11, 35));
-      const synodicMonth = 29.530588853; // 平均朔望月
-      const days = (date - knownNewMoon) / (1000 * 60 * 60 * 24);
-      let age = (days % synodicMonth);
-      if (age < 0) age += synodicMonth;
-      return age.toFixed(1);
-    }
   </script>
 </body>
 </html>
