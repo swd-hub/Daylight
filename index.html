@@ -6,45 +6,52 @@
 </head>
 <body>
   <h1>出雲市の日出・日入・日照時間（JST）</h1>
-  <label>日付:
-    <input type="date" id="date" value="2024-12-14">
-  </label>
-  <button id="btn">取得</button>
-  <pre id="result"></pre>
+ <label>開始日:
+  <input type="date" id="start-date" value="2024-12-14">
+</label>
+<label>終了日:
+  <input type="date" id="end-date" value="2024-12-17">
+</label>
+<button id="btn">取得</button>
+<pre id="result"></pre>
 
   <script>
-    document.getElementById("btn").addEventListener("click", () => {
-      const date = document.getElementById("date").value;
-      const lat = 35.3667;
-      const lon = 132.75;
-      const url = `https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lon}&date=${date}&formatted=0`;
+   document.getElementById("btn").addEventListener("click", async () => {
+  const startDate = new Date(document.getElementById("start-date").value);
+  const endDate = new Date(document.getElementById("end-date").value);
+  const lat = 35.3667;
+  const lon = 132.75;
+  let results = "";
 
-      fetch(url)
-        .then(res => res.json())
-        .then(data => {
-          const sunrise = new Date(data.results.sunrise);
-          const sunset = new Date(data.results.sunset);
+  for (
+    let d = new Date(startDate);
+    d <= endDate;
+    d.setDate(d.getDate() + 1)
+  ) {
+    const dateStr = d.toISOString().slice(0, 10);
+    const url = `https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lon}&date=${dateStr}&formatted=0`;
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+      const sunrise = new Date(data.results.sunrise);
+      const sunset = new Date(data.results.sunset);
+      const formatTime = d =>
+        `${d.getHours().toString().padStart(2, '0')}:` +
+        `${d.getMinutes().toString().padStart(2, '0')}:` +
+        `${d.getSeconds().toString().padStart(2, '0')}`;
+      const daylightMs = sunset - sunrise;
+      const daylightH = Math.floor(daylightMs / (1000 * 60 * 60));
+      const daylightM = Math.floor((daylightMs % (1000 * 60 * 60)) / (1000 * 60));
+      const daylightS = Math.floor((daylightMs % (1000 * 60)) / 1000);
 
-          const formatTime = d =>
-            `${d.getHours().toString().padStart(2, '0')}:` +
-            `${d.getMinutes().toString().padStart(2, '0')}:` +
-            `${d.getSeconds().toString().padStart(2, '0')}`;
-
-          // 日照時間の計算
-          const daylightMs = sunset - sunrise;
-          const daylightH = Math.floor(daylightMs / (1000 * 60 * 60));
-          const daylightM = Math.floor((daylightMs % (1000 * 60 * 60)) / (1000 * 60));
-          const daylightS = Math.floor((daylightMs % (1000 * 60)) / 1000);
-
-          document.getElementById("result").textContent =
-            `日出（JST）: ${formatTime(sunrise)}\n` +
-            `日入（JST）: ${formatTime(sunset)}\n` +
-            `日照時間: ${daylightH}時間 ${daylightM}分 ${daylightS}秒`;
-        })
-        .catch(err => {
-          document.getElementById("result").textContent = "取得エラー: " + err;
-        });
-    });
+      results +=
+        `${dateStr}\n日出（JST）: ${formatTime(sunrise)}\n日入（JST）: ${formatTime(sunset)}\n日照時間: ${daylightH}時間 ${daylightM}分 ${daylightS}秒\n\n`;
+    } catch (err) {
+      results += `${dateStr}\n取得エラー: ${err}\n\n`;
+    }
+  }
+  document.getElementById("result").textContent = results;
+});
   </script>
 </body>
 </html>
