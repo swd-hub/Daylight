@@ -2,18 +2,18 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>出雲市の日出・日入・日照時間</title>
+  <title>出雲市の日出・日入・月出・月入・日照時間・夜間長・月齢</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     .flex-area {
       display: flex;
       justify-content: flex-start;
       align-items: flex-start;
-      margin-top: 2em; /* 入力フォームとの間に2行分空白 */
-      gap: 2em;         /* 表とグラフの間のスペース */
+      margin-top: 2em;
+      gap: 2em;
     }
     #resultTable {
-      min-width: 420px;
+      min-width: 520px;
     }
     #daylightChart {
       background: #fff;
@@ -22,16 +22,16 @@
   </style>
 </head>
 <body>
-  <h1>出雲市の日出・日入・日照時間（JST）</h1>
+  <h1>出雲市の日出・日入・月出・月入・日照時間・夜間長・月齢</h1>
   <label>開始日:
-    <input type="date" id="start-date" value="2024-12-14">
+    <input type="date" id="start-date" value="2025-06-25">
   </label>
   <label>終了日:
-    <input type="date" id="end-date" value="2024-12-17">
+    <input type="date" id="end-date" value="2025-06-29">
   </label>
   <button id="btn">取得</button>
 
-  <br><br> <!-- 入力フォームの下に2行空ける -->
+  <br><br>
 
   <div class="flex-area">
     <table id="resultTable" border="1">
@@ -42,111 +42,143 @@
           <th>日没（JST）</th>
           <th>日照時間</th>
           <th>夜間長</th>
+          <th>月の出（JST）</th>
+          <th>月の入り（JST）</th>
+          <th>月齢</th>
         </tr>
       </thead>
       <tbody></tbody>
     </table>
-
-<canvas id="daylightChart" width="350" height="250"></canvas>
+    <canvas id="daylightChart" width="350" height="250"></canvas>
   </div>
 
   <script>
-document.getElementById("btn").addEventListener("click", async () => {
-  const startDate = new Date(document.getElementById("start-date").value);
-  const endDate = new Date(document.getElementById("end-date").value);
-  const lat = 35.3667;
-  const lon = 132.75;
+    const weatherApiKey = "YOUR_API_KEY"; // ★ここにWeatherAPIで取得したAPIキーを入力
 
-  // テーブル用
-  const tableBody = document.querySelector('#resultTable tbody');
-  tableBody.innerHTML = "";
+    document.getElementById("btn").addEventListener("click", async () => {
+      const startDate = new Date(document.getElementById("start-date").value);
+      const endDate = new Date(document.getElementById("end-date").value);
+      const lat = 35.3667;
+      const lon = 132.75;
 
-  // グラフ用
-  let labels = [];
-  let nightHours = [];
+      const tableBody = document.querySelector('#resultTable tbody');
+      tableBody.innerHTML = "";
+      let labels = [];
+      let nightHours = [];
 
-  for (
-    let d = new Date(startDate);
-    d <= endDate;
-    d.setDate(d.getDate() + 1)
-  ) {
-    const dateStr = d.toISOString().slice(0, 10);
-    const url = `https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lon}&date=${dateStr}&formatted=0`;
-    try {
-      const res = await fetch(url);
-      const data = await res.json();
-      // UTC→JST変換はミリ秒加算で行う
-      const sunriseUTC = new Date(data.results.sunrise);
-      const sunsetUTC  = new Date(data.results.sunset);
-      const sunrise = new Date(sunriseUTC.getTime() + 9 * 60 * 60 * 1000);
-      const sunset  = new Date(sunsetUTC.getTime()  + 9 * 60 * 60 * 1000);
+      for (
+        let d = new Date(startDate);
+        d <= endDate;
+        d.setDate(d.getDate() + 1)
+      ) {
+        const dateStr = d.toISOString().slice(0, 10);
 
-      // フォーマット関数
-      const formatTime = d =>
-        `${d.getHours().toString().padStart(2, '0')}:` +
-        `${d.getMinutes().toString().padStart(2, '0')}:` +
-        `${d.getSeconds().toString().padStart(2, '0')}`;
-      const formatHMS = sec => {
-        const h = Math.floor(sec / 3600);
-        const m = Math.floor((sec % 3600) / 60);
-        const s = Math.floor(sec % 60);
-        return `${h}時間${m}分${s}秒`;
-      };
+        // 太陽データ
+        const sunUrl = `https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lon}&date=${dateStr}&formatted=0`;
 
-      // 日照時間・夜間長（秒）
-      const daylightSec = (sunset - sunrise) / 1000;
-      const nightSec = 24 * 60 * 60 - daylightSec;
+        // 月データ（WeatherAPI）
+        const moonUrl = `https://api.weatherapi.com/v1/astronomy.json?key=${weatherApiKey}&q=Izumo&dt=${dateStr}`;
 
-      // テーブルに追加
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${dateStr}</td>
-        <td>${formatTime(sunrise)}</td>
-        <td>${formatTime(sunset)}</td>
-        <td>${formatHMS(daylightSec)}</td>
-        <td>${formatHMS(nightSec)}</td>
-      `;
-      tableBody.appendChild(tr);
+        try {
+          // 太陽
+          const sunRes = await fetch(sunUrl);
+          const sunData = await sunRes.json();
+          const sunriseUTC = new Date(sunData.results.sunrise);
+          const sunsetUTC = new Date(sunData.results.sunset);
+          const sunrise = new Date(sunriseUTC.getTime() + 9 * 60 * 60 * 1000);
+          const sunset = new Date(sunsetUTC.getTime() + 9 * 60 * 60 * 1000);
 
-      // グラフ用
-      labels.push(dateStr);
-      nightHours.push(nightSec / 3600); // 時間単位(小数)
+          const formatTime = d =>
+            `${d.getHours().toString().padStart(2, '0')}:` +
+            `${d.getMinutes().toString().padStart(2, '0')}:` +
+            `${d.getSeconds().toString().padStart(2, '0')}`;
+          const formatHMS = sec => {
+            const h = Math.floor(sec / 3600);
+            const m = Math.floor((sec % 3600) / 60);
+            const s = Math.floor(sec % 60);
+            return `${h}時間${m}分${s}秒`;
+          };
 
-    } catch (err) {
-      // エラー時もテーブルに表示
-      const tr = document.createElement("tr");
-      tr.innerHTML = `<td colspan="5">${dateStr} 取得エラー: ${err}</td>`;
-      tableBody.appendChild(tr);
-      labels.push(dateStr);
-      nightHours.push(null);
-    }
-  }
+          const daylightSec = (sunset - sunrise) / 1000;
+          const nightSec = 24 * 60 * 60 - daylightSec;
 
-  // グラフ表示
-  const ctx = document.getElementById('daylightChart').getContext('2d');
-  if(window.daylightChartObj){ window.daylightChartObj.destroy(); }
-  window.daylightChartObj = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: '夜間長（時間）',
-        data: nightHours,
-        borderColor: 'blue',
-        backgroundColor: 'rgba(0, 100, 255, 0.2)',
-        spanGaps: true,
-      }]
-    },
-    options: {
-      responsive: false,
-      maintainAspectRatio: false,
-      scales: {
-        x: { title: { display: true, text: '日付' } },
-        y: { title: { display: true, text: '夜間長（時間）' }, min: 0, max: 24 }
+          // 月データ取得
+          let moonrise = "-";
+          let moonset = "-";
+          let moonage  = "-";
+          try {
+            const moonRes = await fetch(moonUrl);
+            const moonData = await moonRes.json();
+            moonrise = moonData.astronomy.astro.moonrise || "-";
+            moonset  = moonData.astronomy.astro.moonset  || "-";
+            // 月齢計算（新月からの日数）: WeatherAPIは直接は返さないが、moon_phaseからは正確でない
+            // 近似計算: 1970/1/7を基準日(既知の新月)として
+            moonage = getMoonAge(new Date(dateStr));
+          } catch (e) {
+            // エラー時は"-"
+          }
+
+          // テーブルに追加
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${dateStr}</td>
+            <td>${formatTime(sunrise)}</td>
+            <td>${formatTime(sunset)}</td>
+            <td>${formatHMS(daylightSec)}</td>
+            <td>${formatHMS(nightSec)}</td>
+            <td>${moonrise}</td>
+            <td>${moonset}</td>
+            <td>${moonage}</td>
+          `;
+          tableBody.appendChild(tr);
+
+          labels.push(dateStr);
+          nightHours.push(nightSec / 3600);
+        } catch (err) {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `<td colspan="8">${dateStr} 取得エラー: ${err}</td>`;
+          tableBody.appendChild(tr);
+          labels.push(dateStr);
+          nightHours.push(null);
+        }
       }
+
+      // グラフ
+      const ctx = document.getElementById('daylightChart').getContext('2d');
+      if(window.daylightChartObj){ window.daylightChartObj.destroy(); }
+      window.daylightChartObj = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: '夜間長（時間）',
+            data: nightHours,
+            borderColor: 'blue',
+            backgroundColor: 'rgba(0, 100, 255, 0.2)',
+            spanGaps: true,
+          }]
+        },
+        options: {
+          responsive: false,
+          maintainAspectRatio: false,
+          scales: {
+            x: { title: { display: true, text: '日付' } },
+            y: { title: { display: true, text: '夜間長（時間）' }, min: 0, max: 24 }
+          }
+        }
+      });
+    });
+
+    // 月齢計算（近似式、JST 1970/1/7を既知の新月として）
+    function getMoonAge(date) {
+      // 1970/1/7 20:35(JST) 新月
+      const knownNewMoon = new Date(Date.UTC(1970, 0, 7, 11, 35));
+      const synodicMonth = 29.530588853; // 平均朔望月
+      const days = (date - knownNewMoon) / (1000 * 60 * 60 * 24);
+      let age = (days % synodicMonth);
+      if (age < 0) age += synodicMonth;
+      return age.toFixed(1);
     }
-  });
-});
   </script>
 </body>
 </html>
