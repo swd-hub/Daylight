@@ -251,41 +251,47 @@ input[type="date"] {
         }
       }
 
-      // グラフ表示
-      const ctx = document.getElementById('daylightChart').getContext('2d');
-      if(window.daylightChartObj){ window.daylightChartObj.destroy(); }
-      window.daylightChartObj = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: '夜間長（時間）',
-            data: nightHours,
-            borderColor: '#2976d6',
-            backgroundColor: 'rgba(41, 118, 214, 0.13)',
-            pointBackgroundColor: '#2976d6',
-            pointRadius: 3,
-            spanGaps: true,
-            tension: 0.28
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false }
-          },
-          scales: {
-            x: { title: { display: true, text: '日付', font: {size: 16} }, ticks: {font:{size:15}} },
-            y: {
-              title: { display: true, text: '夜間長（時間）', font: {size: 16} },
-              min: 8,
-              max: 16,
-              ticks: { stepSize: 2, font:{size:15} }
-            }
-          }
-        }
-      });
+     // グラフ表示
+const ctx = document.getElementById('daylightChart').getContext('2d');
+if(window.daylightChartObj){ window.daylightChartObj.destroy(); }
+window.daylightChartObj = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: labels,
+    datasets: [{
+      label: '夜間長（時間）',
+      data: nightHours,
+      borderColor: '#2976d6',
+      backgroundColor: 'rgba(41, 118, 214, 0.13)',
+      pointBackgroundColor: '#2976d6',
+      pointRadius: 3,
+      spanGaps: true,
+      tension: 0.28
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      // ここを追加↓
+      title: {
+        display: true,
+        text: '夜間長（日の入から日の出）',
+        font: { size: 20 }
+      }
+    },
+    scales: {
+      x: { title: { display: true, text: '日付', font: {size: 16} }, ticks: {font:{size:15}} },
+      y: {
+        title: { display: true, text: '夜間長（時間）', font: {size: 16} },
+        min: 8,
+        max: 16,
+        ticks: { stepSize: 2, font:{size:15} }
+      }
+    }
+  }
+});
     });
   </script>
 </body>
