@@ -1,147 +1,134 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <title>出雲市の日出・日入・日照時間</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <h1>出雲市の日出・日入・日照時間（JST）</h1>
- <label>開始日:
-  <input type="date" id="start-date" value="2024-12-14">
-</label>
-<label>終了日:
-  <input type="date" id="end-date" value="2024-12-17">
-</label>
-<button id="btn">取得</button>
-  
-<!-- <pre id="result"></pre> -->
-  
-<table id="resultTable" border="1">
-  <thead>
-    <tr>
-      <th>日付</th>
-      <th>日出（JST）</th>
-      <th>日没（JST）</th>
-      <th>日照時間</th>
-      <th>夜間長</th>
-    </tr>
-  </thead>
-  <tbody></tbody>
-</table>  
-<canvas id="daylightChart" width="600" height="400"></canvas>
-  
+  <label>開始日:
+    <input type="date" id="start-date" value="2024-12-14">
+  </label>
+  <label>終了日:
+    <input type="date" id="end-date" value="2024-12-17">
+  </label>
+  <button id="btn">取得</button>
+
+  <!-- <pre id="result"></pre> 今回は表で示すので不要 -->
+
+  <table id="resultTable" border="1">
+    <thead>
+      <tr>
+        <th>日付</th>
+        <th>日出（JST）</th>
+        <th>日没（JST）</th>
+        <th>日照時間</th>
+        <th>夜間長</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <canvas id="daylightChart" width="600" height="400"></canvas>
+
   <script>
-document.getElementById("btn").addEventListener("click", async () => {
-  const startDate = new Date(document.getElementById("start-date").value);
-  const endDate = new Date(document.getElementById("end-date").value);
-  const lat = 35.3667;
-  const lon = 132.75;
-  let results = "";
-  let labels = [];
-  let daylightHours = [];
+    document.getElementById("btn").addEventListener("click", async () => {
+      const startDate = new Date(document.getElementById("start-date").value);
+      const endDate = new Date(document.getElementById("end-date").value);
+      const lat = 35.3667;
+      const lon = 132.75;
 
-  for (
-    let d = new Date(startDate);
-    d <= endDate;
-    d.setDate(d.getDate() + 1)
-  ) {
-    const dateStr = d.toISOString().slice(0, 10);
-    const url = `https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lon}&date=${dateStr}&formatted=0`;
-    try {
-      const res = await fetch(url);
-      const data = await res.json();
-      const sunrise = new Date(data.results.sunrise);
-      const sunset = new Date(data.results.sunset);
-
-      const formatTime = d =>
-        `${d.getHours().toString().padStart(2, '0')}:` +
-        `${d.getMinutes().toString().padStart(2, '0')}:` +
-        `${d.getSeconds().toString().padStart(2, '0')}`;
-
-      const daylightMs = sunset - sunrise;
-      const daylightH = Math.floor(daylightMs / (1000 * 60 * 60));
-      const daylightM = Math.floor((daylightMs % (1000 * 60 * 60)) / (1000 * 60));
-      const daylightS = Math.floor((daylightMs % (1000 * 60)) / 1000);
-
-      results +=
-        `${dateStr}\n日出（JST）: ${formatTime(sunrise)}\n日入（JST）: ${formatTime(sunset)}\n日照時間: ${daylightH}時間 ${daylightM}分 ${daylightS}秒\n\n`;
+      // テーブル用
+      const tableBody = document.querySelector('#resultTable tbody');
+      tableBody.innerHTML = "";
 
       // グラフ用
-      labels.push(dateStr);
-      daylightHours.push((sunset - sunrise) / (1000 * 60 * 60)); // 時間単位(小数)
-    } catch (err) {
-      results += `${dateStr}\n取得エラー: ${err}\n\n`;
-      labels.push(dateStr);
-      daylightHours.push(null);
-    }
-  }
-  document.getElementById("result").textContent = results;
+      let labels = [];
+      let daylightHours = [];
 
-  // グラフ表示
-  const ctx = document.getElementById('daylightChart').getContext('2d');
-  if(window.daylightChartObj){ window.daylightChartObj.destroy(); } // 二重描画防止
-  window.daylightChartObj = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: '日照時間（時間）',
-        data: daylightHours,
-        borderColor: 'orange',
-        backgroundColor: 'rgba(255, 165, 0, 0.2)',
-        spanGaps: true,
-      }]
-    },
-    options: {
-      scales: {
-        x: { title: { display: true, text: '日付' } },
-        y: { title: { display: true, text: '日照時間（時間）' }, min: 0, max: 15 }
+      for (
+        let d = new Date(startDate);
+        d <= endDate;
+        d.setDate(d.getDate() + 1)
+      ) {
+        const dateStr = d.toISOString().slice(0, 10);
+        const url = `https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lon}&date=${dateStr}&formatted=0`;
+        try {
+          const res = await fetch(url);
+          const data = await res.json();
+          const sunrise = new Date(data.results.sunrise);
+          const sunset = new Date(data.results.sunset);
+
+          // JSTに変換
+          sunrise.setHours(sunrise.getHours() + 9);
+          sunset.setHours(sunset.getHours() + 9);
+
+          // フォーマット関数
+          const formatTime = d =>
+            `${d.getHours().toString().padStart(2, '0')}:` +
+            `${d.getMinutes().toString().padStart(2, '0')}:` +
+            `${d.getSeconds().toString().padStart(2, '0')}`;
+          const formatHMS = sec => {
+            const h = Math.floor(sec / 3600);
+            const m = Math.floor((sec % 3600) / 60);
+            const s = Math.floor(sec % 60);
+            return `${h}時間${m}分${s}秒`;
+          };
+
+          // 日照時間（秒単位）
+          const daylightSec = (sunset - sunrise) / 1000;
+          // 夜間長（秒単位）
+          const nightSec = 24 * 60 * 60 - daylightSec;
+
+          // テーブルに追加
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${dateStr}</td>
+            <td>${formatTime(sunrise)}</td>
+            <td>${formatTime(sunset)}</td>
+            <td>${formatHMS(daylightSec)}</td>
+            <td>${formatHMS(nightSec)}</td>
+          `;
+          tableBody.appendChild(tr);
+
+          // グラフ用
+          labels.push(dateStr);
+          daylightHours.push(daylightSec / 3600);
+
+        } catch (err) {
+          // エラー時もテーブルに表示
+          const tr = document.createElement("tr");
+          tr.innerHTML = `<td colspan="5">${dateStr} 取得エラー: ${err}</td>`;
+          tableBody.appendChild(tr);
+          labels.push(dateStr);
+          daylightHours.push(null);
+        }
       }
-    }
-  });
-});
-const tableBody = document.querySelector('#resultTable tbody');
-tableBody.innerHTML = ""; // 前回の内容をクリア
 
-for (
-  let d = new Date(startDate);
-  d <= endDate;
-  d.setDate(d.getDate() + 1)
-) {
-  const dateStr = d.toISOString().slice(0, 10);
-  // ...API取得部分は省略...
-  // 以下はAPI取得後（try内）の処理例
-
-  // 日照時間（秒単位）
-  const daylightSec = (sunset - sunrise) / 1000;
-  // 夜間長（秒単位）
-  const nightSec = 24 * 60 * 60 - daylightSec;
-
-  // フォーマット関数
-  const formatTime = d =>
-    `${d.getHours().toString().padStart(2, '0')}:` +
-    `${d.getMinutes().toString().padStart(2, '0')}:` +
-    `${d.getSeconds().toString().padStart(2, '0')}`;
-  const formatHMS = sec => {
-    const h = Math.floor(sec / 3600);
-    const m = Math.floor((sec % 3600) / 60);
-    const s = Math.floor(sec % 60);
-    return `${h}時間${m}分${s}秒`;
-  };
-
-  // 行の作成・追加
-  const tr = document.createElement("tr");
-  tr.innerHTML = `
-    <td>${dateStr}</td>
-    <td>${formatTime(sunrise)}</td>
-    <td>${formatTime(sunset)}</td>
-    <td>${formatHMS(daylightSec)}</td>
-    <td>${formatHMS(nightSec)}</td>
-  `;
-  tableBody.appendChild(tr);
-}
-    
+      // グラフ表示
+      const ctx = document.getElementById('daylightChart').getContext('2d');
+      if(window.daylightChartObj){ window.daylightChartObj.destroy(); }
+      window.daylightChartObj = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: '日照時間（時間）',
+            data: daylightHours,
+            borderColor: 'orange',
+            backgroundColor: 'rgba(255, 165, 0, 0.2)',
+            spanGaps: true,
+          }]
+        },
+        options: {
+          scales: {
+            x: { title: { display: true, text: '日付' } },
+            y: { title: { display: true, text: '日照時間（時間）' }, min: 0, max: 15 }
+          }
+        }
+      });
+    });
   </script>
 </body>
 </html>
