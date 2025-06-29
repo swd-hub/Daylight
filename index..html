@@ -2,29 +2,14 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>出雲市の日出・日入・月出・月入・日照時間・夜間長・月齢</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/suncalc@1.9.0/suncalc.js"></script>
+  <title>出雲市の日出・日入・月出・月入・日照時間・夜間長・月齢（2API版）</title>
   <style>
-    .flex-area {
-      display: flex;
-      justify-content: flex-start;
-      align-items: flex-start;
-      margin-top: 2em;
-      gap: 2em;
-    }
-    #resultTable {
-      min-width: 600px;
-    }
-    #daylightChart {
-      background: #fff;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
     th, td { text-align: center; }
+    #resultTable { min-width: 700px; }
   </style>
 </head>
 <body>
-  <h1>出雲市の日出・日入・月出・月入・日照時間・夜間長・月齢</h1>
+  <h1>出雲市の日出・日入・月出・月入・日照時間・夜間長・月齢（2API版）</h1>
   <label>開始日:
     <input type="date" id="start-date" value="2025-06-25">
   </label>
@@ -32,136 +17,109 @@
     <input type="date" id="end-date" value="2025-06-29">
   </label>
   <button id="btn">取得</button>
-
   <br><br>
-
-  <div class="flex-area">
-    <table id="resultTable" border="1">
-      <thead>
-        <tr>
-          <th>日付</th>
-          <th>日出（JST）</th>
-          <th>日没（JST）</th>
-          <th>日照時間</th>
-          <th>夜間長</th>
-          <th>月の出（JST）</th>
-          <th>月の入り（JST）</th>
-          <th>月齢</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-    <canvas id="daylightChart" width="350" height="250"></canvas>
-  </div>
-
+  <table id="resultTable" border="1">
+    <thead>
+      <tr>
+        <th>日付</th>
+        <th>日出（JST）</th>
+        <th>日没（JST）</th>
+        <th>日照時間</th>
+        <th>夜間長</th>
+        <th>月の出（JST）</th>
+        <th>月の入り（JST）</th>
+        <th>月齢</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
   <script>
-    // JST「YYYY-MM-DD 0:00:00」を生成
-    function getDateJST0(yyyyMMdd) {
-      // ブラウザのDate生成で明示的にJSTに
-      return new Date(yyyyMMdd + 'T00:00:00+09:00');
+    const lat = 35.3667;
+    const lon = 132.75;
+    const tbody = document.querySelector('#resultTable tbody');
+
+    function pad0(n) { return n < 10 ? '0' + n : n; }
+
+    // JST変換（ISO8601文字列をJST DateにしてHH:MM:SSで返す）
+    function toJSTTimeStr(dtstr) {
+      if (!dtstr) return "-";
+      const date = new Date(dtstr);
+      if (isNaN(date.getTime())) return "-";
+      const jst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+      return pad0(jst.getHours()) + ":" + pad0(jst.getMinutes()) + ":" + pad0(jst.getSeconds());
     }
 
-    // JSTとして時刻表示（必ずJSTで表示する）
-    function formatTimeJST(date) {
-      if (!date || isNaN(date.getTime())) return "-";
-      // UTC+9:00で表示
-      return date.toLocaleTimeString('ja-JP', { hour12: false, timeZone: 'Asia/Tokyo' });
-    }
-
-    // 秒→「X時間Y分Z秒」
-    function formatHMS(sec) {
+    // 日照時間・夜間長計算
+    function getHMS(sec) {
+      if (isNaN(sec) || sec < 0) return "-";
       const h = Math.floor(sec / 3600);
       const m = Math.floor((sec % 3600) / 60);
       const s = Math.floor(sec % 60);
       return `${h}時間${m}分${s}秒`;
     }
 
-    // 月齢（日数）
-    function getMoonAge(date) {
-      const synodicMonth = 29.530588853;
-      const phase = SunCalc.getMoonIllumination(date).phase;
-      return (phase * synodicMonth).toFixed(1);
-    }
-
-    document.getElementById("btn").addEventListener("click", () => {
+    document.getElementById("btn").onclick = async () => {
+      tbody.innerHTML = '';
       const startDate = new Date(document.getElementById("start-date").value);
       const endDate = new Date(document.getElementById("end-date").value);
-      const lat = 35.3667;
-      const lon = 132.75;
-
-      const tableBody = document.querySelector('#resultTable tbody');
-      tableBody.innerHTML = "";
-      let labels = [];
-      let nightHours = [];
 
       for (
         let d = new Date(startDate);
         d <= endDate;
         d.setDate(d.getDate() + 1)
       ) {
-        const yyyyMMdd = d.toISOString().slice(0, 10);
-        // JST0時でDate生成
-        const dateJST = getDateJST0(yyyyMMdd);
+        const yyyy = d.getFullYear();
+        const mm = pad0(d.getMonth() + 1);
+        const dd = pad0(d.getDate());
+        const datestr = `${yyyy}-${mm}-${dd}`;
 
-        // SunCalcで天文データ
-        const sunTimes = SunCalc.getTimes(dateJST, lat, lon);
-        const moonTimes = SunCalc.getMoonTimes(dateJST, lat, lon);
-        const moonAge = getMoonAge(dateJST);
+        // 1. 太陽: Sunrise-Sunset.org API (UTCで返る)
+        let sunriseJST = "-", sunsetJST = "-", daylightHMS = "-", nightHMS = "-";
+        try {
+          const resSun = await fetch(`https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lon}&date=${datestr}&formatted=0`);
+          const dataSun = await resSun.json();
+          if (dataSun.status === "OK") {
+            sunriseJST = toJSTTimeStr(dataSun.results.sunrise);
+            sunsetJST = toJSTTimeStr(dataSun.results.sunset);
 
-        // 日の出・日の入り
-        const sunrise = sunTimes.sunrise;
-        const sunset  = sunTimes.sunset;
-
-        // 日照時間・夜間長
-        let daylightSec = (sunrise && sunset) ? (sunset - sunrise) / 1000 : null;
-        let nightSec = (daylightSec !== null) ? 24 * 3600 - daylightSec : null;
-
-        // 月の出・月の入り
-        const moonrise = moonTimes.rise;
-        const moonset  = moonTimes.set;
-
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${yyyyMMdd}</td>
-          <td>${formatTimeJST(sunrise)}</td>
-          <td>${formatTimeJST(sunset)}</td>
-          <td>${daylightSec !== null ? formatHMS(daylightSec) : "-"}</td>
-          <td>${nightSec !== null ? formatHMS(nightSec) : "-"}</td>
-          <td>${formatTimeJST(moonrise)}</td>
-          <td>${formatTimeJST(moonset)}</td>
-          <td>${moonAge}</td>
-        `;
-        tableBody.appendChild(tr);
-
-        labels.push(yyyyMMdd);
-        nightHours.push(nightSec !== null ? (nightSec / 3600) : null);
-      }
-
-      // Chart.jsグラフ
-      const ctx = document.getElementById('daylightChart').getContext('2d');
-      if(window.daylightChartObj){ window.daylightChartObj.destroy(); }
-      window.daylightChartObj = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: '夜間長（時間）',
-            data: nightHours,
-            borderColor: 'blue',
-            backgroundColor: 'rgba(0, 100, 255, 0.2)',
-            spanGaps: true,
-          }]
-        },
-        options: {
-          responsive: false,
-          maintainAspectRatio: false,
-          scales: {
-            x: { title: { display: true, text: '日付' } },
-            y: { title: { display: true, text: '夜間長（時間）' }, min: 0, max: 24 }
+            // 日照時間計算
+            const riseDate = new Date(dataSun.results.sunrise);
+            const setDate = new Date(dataSun.results.sunset);
+            if (!isNaN(riseDate.getTime()) && !isNaN(setDate.getTime())) {
+              let daylightSec = (setDate - riseDate) / 1000;
+              if (daylightSec < 0) daylightSec += 24 * 3600; // まれな極端日長対策
+              daylightHMS = getHMS(daylightSec);
+              nightHMS = getHMS(24*3600 - daylightSec);
+            }
           }
-        }
-      });
-    });
+        } catch (e) {}
+
+        // 2. 月: 国立天文台API
+        let moonrise = "-", moonset = "-", moonage = "-";
+        try {
+          const resMoon = await fetch(`https://eco.mtk.nao.ac.jp/koyomi/api/moonrise_set.php?date=${datestr}&lat=${lat}&lon=${lon}`);
+          const dataMoon = await resMoon.json();
+          // 月の出・月の入りは "hh:mm" JST形式で返る
+          moonrise = dataMoon.moonrise || "-";
+          moonset = dataMoon.moonset  || "-";
+          moonage = dataMoon.age      || "-";
+        } catch (e) {}
+
+        // テーブル出力
+        tbody.innerHTML += `
+          <tr>
+            <td>${datestr}</td>
+            <td>${sunriseJST}</td>
+            <td>${sunsetJST}</td>
+            <td>${daylightHMS}</td>
+            <td>${nightHMS}</td>
+            <td>${moonrise}</td>
+            <td>${moonset}</td>
+            <td>${moonage}</td>
+          </tr>
+        `;
+      }
+    };
   </script>
 </body>
 </html>
