@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>出雲市の日出・日入・月出・月入・日照時間・夜間長・月齢</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/suncalc@1.9.0/suncalc.js"></script>
+  <style>
+    .flex-area {
+      display: flex;
+      justify-content: flex-start;
+      align-items: flex-start;
+      margin-top: 2em;
+      gap: 2em;
+    }
+    #resultTable {
+      min-width: 600px;
+    }
+    #daylightChart {
+      background: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    th, td { text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>出雲市の日出・日入・月出・月入・日照時間・夜間長・月齢</h1>
+  <label>開始日:
+    <input type="date" id="start-date" value="2025-06-25">
+  </label>
+  <label>終了日:
+    <input type="date" id="end-date" value="2025-06-29">
+  </label>
+  <button id="btn">取得</button>
+
+  <br><br>
+
+  <div class="flex-area">
+    <table id="resultTable" border="1">
+      <thead>
+        <tr>
+          <th>日付</th>
+          <th>日出（JST）</th>
+          <th>日没（JST）</th>
+          <th>日照時間</th>
+          <th>夜間長</th>
+          <th>月の出（JST）</th>
+          <th>月の入り（JST）</th>
+          <th>月齢</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <canvas id="daylightChart" width="350" height="250"></canvas>
+  </div>
+
+  <script>
+    // JST（日本標準時）でのDate作成
+    function makeJSTDate(yyyyMMdd) {
+      return new Date(yyyyMMdd + "T00:00:00+09:00");
+    }
+
+    // 時刻表示（JST）
+    function formatTimeJST(d) {
+      if (!d || isNaN(d.getTime())) return "-";
+      return d.getHours().toString().padStart(2, '0') + ":" +
+             d.getMinutes().toString().padStart(2, '0') + ":" +
+             d.getSeconds().toString().padStart(2, '0');
+    }
+
+    // 時間差（秒→「X時間Y分Z秒」）
+    function formatHMS(sec) {
+      const h = Math.floor(sec / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      const s = Math.floor(sec % 60);
+      return `${h}時間${m}分${s}秒`;
+    }
+
+    // 月齢計算（SunCalcのphaseを日数に換算）
+    function getMoonAge(date) {
+      const synodicMonth = 29.530588853;
+      const phase = SunCalc.getMoonIllumination(date).phase;
+      return (phase * synodicMonth).toFixed(1);
+    }
+
+    document.getElementById("btn").addEventListener("click", async () => {
+      const startDate = new Date(document.getElementById("start-date").value);
+      const endDate = new Date(document.getElementById("end-date").value);
+      const lat = 35.3667;
+      const lon = 132.75;
+
+      const tableBody = document.querySelector('#resultTable tbody');
+      tableBody.innerHTML = "";
+      let labels = [];
+      let nightHours = [];
+
+      for (
+        let d = new Date(startDate);
+        d <= endDate;
+        d.setDate(d.getDate() + 1)
+      ) {
+        const yyyyMMdd = d.toISOString().slice(0, 10);
+        const dateJST = makeJSTDate(yyyyMMdd);
+
+        // SunCalcで太陽・月のデータ取得
+        const sunTimes = SunCalc.getTimes(dateJST, lat, lon);
+        const moonTimes = SunCalc.getMoonTimes(dateJST, lat, lon);
+        const moonAge = getMoonAge(dateJST);
+
+        // 日出・日没
+        const sunrise = sunTimes.sunrise ? new Date(sunTimes.sunrise.getTime() + (9 * 3600 * 1000) - sunTimes.sunrise.getTimezoneOffset() * 60000) : null;
+        const sunset  = sunTimes.sunset  ? new Date(sunTimes.sunset.getTime()  + (9 * 3600 * 1000) - sunTimes.sunset.getTimezoneOffset() * 60000) : null;
+
+        // 日照時間・夜間長（秒）
+        let daylightSec = sunrise && sunset ? (sunset - sunrise) / 1000 : null;
+        let nightSec = daylightSec !== null ? 24 * 3600 - daylightSec : null;
+
+        // 月の出・月の入り（注意: JST化）
+        let moonrise = moonTimes.rise ? new Date(moonTimes.rise.getTime() + (9 * 3600 * 1000) - moonTimes.rise.getTimezoneOffset() * 60000) : null;
+        let moonset  = moonTimes.set  ? new Date(moonTimes.set.getTime()  + (9 * 3600 * 1000) - moonTimes.set.getTimezoneOffset() * 60000) : null;
+
+        // テーブル行の作成
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${yyyyMMdd}</td>
+          <td>${formatTimeJST(sunrise)}</td>
+          <td>${formatTimeJST(sunset)}</td>
+          <td>${daylightSec !== null ? formatHMS(daylightSec) : "-"}</td>
+          <td>${nightSec !== null ? formatHMS(nightSec) : "-"}</td>
+          <td>${formatTimeJST(moonrise)}</td>
+          <td>${formatTimeJST(moonset)}</td>
+          <td>${moonAge}</td>
+        `;
+        tableBody.appendChild(tr);
+
+        labels.push(yyyyMMdd);
+        nightHours.push(nightSec !== null ? (nightSec / 3600) : null);
+      }
+
+      // Chart.jsで夜間長グラフ
+      const ctx = document.getElementById('daylightChart').getContext('2d');
+      if(window.daylightChartObj){ window.daylightChartObj.destroy(); }
+      window.daylightChartObj = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: '夜間長（時間）',
+            data: nightHours,
+            borderColor: 'blue',
+            backgroundColor: 'rgba(0, 100, 255, 0.2)',
+            spanGaps: true,
+          }]
+        },
+        options: {
+          responsive: false,
+          maintainAspectRatio: false,
+          scales: {
+            x: { title: { display: true, text: '日付' } },
+            y: { title: { display: true, text: '夜間長（時間）' }, min: 0, max: 24 }
+          }
+        }
+      });
+    });
+  </script>
+</body>
+</html>
