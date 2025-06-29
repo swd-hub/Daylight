@@ -5,19 +5,80 @@
   <title>出雲市の日出・日入・日照時間</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
+    body {
+      font-family: "Segoe UI", "Meiryo", sans-serif;
+      background: #f7f7fa;
+      margin: 0;
+      padding: 24px;
+    }
+    h1 {
+      font-size: 1.4em;
+      margin-bottom: 1em;
+    }
+    label {
+      margin-right: 1em;
+    }
+    #btn {
+      padding: 0.3em 1em;
+      font-size: 1em;
+      margin-left: 0.5em;
+    }
     .flex-area {
       display: flex;
       justify-content: flex-start;
       align-items: flex-start;
-      margin-top: 2em; /* 入力フォームとの間に2行分空白 */
-      gap: 2em;         /* 表とグラフの間のスペース */
+      margin-top: 2em;
+      gap: 2em;
+      flex-wrap: wrap;
     }
     #resultTable {
       min-width: 420px;
+      background: #fff;
+      border-collapse: collapse;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      font-size: 0.97em;
+    }
+    #resultTable th, #resultTable td {
+      padding: 0.3em 0.7em;
+      border: 1px solid #d0d0e0;
+      text-align: center;
+    }
+    #resultTable th {
+      background: #e9e9f3;
+    }
+    /* グラフエリア親を明示的に制限 */
+    .chart-container {
+      width: 220px;
+      height: 150px;
+      background: #fff;
+      border-radius: 6px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      padding: 8px 4px 0 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     #daylightChart {
+      width: 100% !important;
+      height: 100% !important;
+      max-width: 220px;
+      max-height: 120px;
       background: #fff;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      display: block;
+    }
+    @media (max-width: 800px) {
+      .flex-area {
+        flex-direction: column;
+        gap: 1.2em;
+      }
+      .chart-container {
+        margin: 0 auto;
+      }
+      #resultTable {
+        min-width: 0;
+        width: 100%;
+        font-size: 1em;
+      }
     }
   </style>
 </head>
@@ -31,10 +92,8 @@
   </label>
   <button id="btn">取得</button>
 
-  <br><br> <!-- 入力フォームの下に2行空ける -->
-
   <div class="flex-area">
-    <table id="resultTable" border="1">
+    <table id="resultTable">
       <thead>
         <tr>
           <th>日付</th>
@@ -47,7 +106,9 @@
       <tbody></tbody>
     </table>
 
-    <canvas id="daylightChart" width="250" height="150"></canvas>
+    <div class="chart-container">
+      <canvas id="daylightChart"></canvas>
+    </div>
   </div>
 
   <script>
@@ -120,7 +181,7 @@
 
           // グラフ用
           labels.push(dateStr);
-          nightHours.push(nightSec / 3600); // 時間単位(小数)
+          nightHours.push(Number((nightSec / 3600).toFixed(2))); // 時間単位(小数,小数点2桁)
 
         } catch (err) {
           // エラー時もテーブルに表示
@@ -142,15 +203,28 @@
           datasets: [{
             label: '夜間長（時間）',
             data: nightHours,
-            borderColor: 'blue',
-            backgroundColor: 'rgba(0, 100, 255, 0.2)',
+            borderColor: '#2976d6',
+            backgroundColor: 'rgba(41, 118, 214, 0.13)',
+            pointBackgroundColor: '#2976d6',
+            pointRadius: 3,
             spanGaps: true,
+            tension: 0.28
           }]
         },
         options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
           scales: {
-            x: { title: { display: true, text: '日付' } },
-            y: { title: { display: true, text: '夜間長（時間）' }, min: 0, max: 24 }
+            x: { title: { display: true, text: '日付', font: {size: 12} }, ticks: {font:{size:11}} },
+            y: {
+              title: { display: true, text: '夜間長（時間）', font: {size: 12} },
+              min: 0,
+              max: 24,
+              ticks: { stepSize: 2, font:{size:11} }
+            }
           }
         }
       });
