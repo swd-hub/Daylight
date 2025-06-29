@@ -55,18 +55,20 @@
   </div>
 
   <script>
-    // JSTで「YYYY-MM-DD」の0時（日本の標準時）をUTCとして生成
-    function getDateAtJST0(yyyyMMdd) {
-      // yyyyMMddは "2025-06-25" のような文字列
-      // JST0時をUTCで渡す
-      return new Date(`${yyyyMMdd}T00:00:00+09:00`);
+    // JSTのYYYY-MM-DDをUTCの前日15:00に変換
+    function getBaseDateUTC(yyyyMMdd) {
+      // JST 0時 → UTC前日15:00
+      // 例: 2025-06-25T00:00:00+09:00 → 2025-06-24T15:00:00Z
+      const [y, m, d] = yyyyMMdd.split('-').map(Number);
+      return new Date(Date.UTC(y, m - 1, d, -9, 0, 0));
     }
 
-    // JST時刻文字列に整形
+    // JST時刻に変換して「HH:MM:SS」表示
     function formatTimeJST(date) {
       if (!date || isNaN(date.getTime())) return "-";
-      // JSTとして表示
-      return date.toLocaleTimeString("ja-JP", { hour12: false });
+      // UTC→JST補正
+      const jst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+      return jst.toTimeString().slice(0,8);
     }
 
     // 秒→「X時間Y分Z秒」
@@ -102,15 +104,15 @@
       ) {
         const yyyyMMdd = d.toISOString().slice(0, 10);
 
-        // JST0時のDateで計算
-        const dateJST = getDateAtJST0(yyyyMMdd);
+        // JSTの0時をUTC基準で渡す
+        const baseDateUTC = getBaseDateUTC(yyyyMMdd);
 
         // SunCalcで天文データ
-        const sunTimes = SunCalc.getTimes(dateJST, lat, lon);
-        const moonTimes = SunCalc.getMoonTimes(dateJST, lat, lon);
-        const moonAge = getMoonAge(dateJST);
+        const sunTimes = SunCalc.getTimes(baseDateUTC, lat, lon);
+        const moonTimes = SunCalc.getMoonTimes(baseDateUTC, lat, lon);
+        const moonAge = getMoonAge(baseDateUTC);
 
-        // 日の出・日の入り（SunCalcはローカルタイム返すので、そのままJSTとして表示OK）
+        // 日の出・日の入り（UTC→JST補正して表示）
         const sunrise = sunTimes.sunrise;
         const sunset  = sunTimes.sunset;
 
@@ -118,7 +120,7 @@
         let daylightSec = (sunrise && sunset) ? (sunset - sunrise) / 1000 : null;
         let nightSec = (daylightSec !== null) ? 24 * 3600 - daylightSec : null;
 
-        // 月の出・月の入り（同上）
+        // 月の出・月の入り（UTC→JST補正して表示）
         const moonrise = moonTimes.rise;
         const moonset  = moonTimes.set;
 
