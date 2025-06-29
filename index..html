@@ -40,14 +40,14 @@
 
     function pad0(n) { return n < 10 ? '0' + n : n; }
 
-    // JST変換（UTC文字列 → JST HH:MM:SS）
-    function toJSTTimeStr(dtstr) {
-      if (!dtstr) return "-";
-      const utc = new Date(Date.parse(dtstr));
-      if (isNaN(utc.getTime())) return "-";
-      const jst = new Date(utc.getTime() + 9 * 60 * 60 * 1000);
-      return pad0(jst.getHours()) + ":" + pad0(jst.getMinutes()) + ":" + pad0(jst.getSeconds());
-    }
+// JST変換（ISO8601 UTC → JST）
+function toJSTTimeStr(dtstr) {
+  if (!dtstr) return "-";
+  const utc = new Date(dtstr);
+  if (isNaN(utc.getTime())) return "-";
+  const jst = new Date(utc.getTime() + 9 * 60 * 60 * 1000);
+  return pad0(jst.getHours()) + ":" + pad0(jst.getMinutes()) + ":" + pad0(jst.getSeconds());
+}
 
     // 日照時間・夜間長計算
     function getHMS(sec) {
