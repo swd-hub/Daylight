@@ -40,18 +40,16 @@
 
     function pad0(n) { return n < 10 ? '0' + n : n; }
 
-function toJSTTimeStr(dtstr) {
-  if (!dtstr) return "-";
-  const utc = new Date(dtstr); // dtstrには "+00:00" があるのでUTCとして解釈される
-  const jstHour = utc.getUTCHours() + 9;
-  const jst = new Date(utc);
-  jst.setUTCHours(jstHour); // JSTで表現
-  return pad0(jst.getUTCHours()) + ":" + pad0(jst.getUTCMinutes()) + ":" + pad0(jst.getUTCSeconds());
-}
-turn pad0(jst.getHours()) + ":" + pad0(jst.getMinutes()) + ":" + pad0(jst.getSeconds());
-}
+    // UTC ISO → JST に正確に変換
+    function toJSTTimeStr(isoUtc) {
+      if (!isoUtc) return "-";
+      const d = new Date(isoUtc); // ISOに +00:00 があるのでUTCとして扱われる
+      if (isNaN(d.getTime())) return "-";
+      const h = d.getUTCHours() + 9;
+      const jst = new Date(d.getTime() + (9 * 3600 * 1000));
+      return pad0(jst.getUTCHours()) + ":" + pad0(jst.getUTCMinutes()) + ":" + pad0(jst.getUTCSeconds());
+    }
 
-    // 日照時間・夜間長計算
     function getHMS(sec) {
       if (isNaN(sec) || sec < 0) return "-";
       const h = Math.floor(sec / 3600);
@@ -62,62 +60,43 @@ turn pad0(jst.getHours()) + ":" + pad0(jst.getMinutes()) + ":" + pad0(jst.getSec
 
     document.getElementById("btn").onclick = async () => {
       tbody.innerHTML = '';
-      const startDate = new Date(document.getElementById("start-date").value);
-      const endDate = new Date(document.getElementById("end-date").value);
+      const s = new Date(document.getElementById("start-date").value);
+      const e = new Date(document.getElementById("end-date").value);
+      for (let d = new Date(s); d <= e; d.setDate(d.getDate()+1)) {
+        const Y = d.getFullYear();
+        const M = pad0(d.getMonth()+1);
+        const D = pad0(d.getDate());
+        const ds = `${Y}-${M}-${D}`;
 
-      for (
-        let d = new Date(startDate);
-        d <= endDate;
-        d.setDate(d.getDate() + 1)
-      ) {
-        const yyyy = d.getFullYear();
-        const mm = pad0(d.getMonth() + 1);
-        const dd = pad0(d.getDate());
-        const datestr = `${yyyy}-${mm}-${dd}`;
-
-        // 太陽データ
-        let sunriseJST = "-", sunsetJST = "-", daylightHMS = "-", nightHMS = "-";
+        let sr = "-", ss = "-", dh = "-", nh = "-";
         try {
-          const resSun = await fetch(`https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lon}&date=${datestr}&formatted=0`);
-          const dataSun = await resSun.json();
-          if (dataSun.status === "OK") {
-            sunriseJST = toJSTTimeStr(dataSun.results.sunrise);
-            sunsetJST = toJSTTimeStr(dataSun.results.sunset);
-
-            const riseDate = new Date(Date.parse(dataSun.results.sunrise));
-            const setDate = new Date(Date.parse(dataSun.results.sunset));
-            if (!isNaN(riseDate.getTime()) && !isNaN(setDate.getTime())) {
-              let daylightSec = (setDate - riseDate) / 1000;
-              if (daylightSec < 0) daylightSec += 24 * 3600;
-              daylightHMS = getHMS(daylightSec);
-              nightHMS = getHMS(24 * 3600 - daylightSec);
-            }
+          const r = await fetch(`https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lon}&date=${ds}&formatted=0`);
+          const j = await r.json();
+          if (j.status === "OK") {
+            sr = toJSTTimeStr(j.results.sunrise);
+            ss = toJSTTimeStr(j.results.sunset);
+            const ru = new Date(j.results.sunrise);
+            const su = new Date(j.results.sunset);
+            let delta = (su.getTime() - ru.getTime())/1000;
+            if (delta < 0) delta += 86400;
+            dh = getHMS(delta);
+            nh = getHMS(86400 - delta);
           }
-        } catch (e) {}
+        } catch {}
 
-        // 月データ
-        let moonrise = "-", moonset = "-", moonage = "-";
+        let mr = "-", ms = "-", ma = "-";
         try {
-          const resMoon = await fetch(`https://eco.mtk.nao.ac.jp/koyomi/api/moonrise_set.php?date=${datestr}&lat=${lat}&lon=${lon}`);
-          const dataMoon = await resMoon.json();
-          moonrise = dataMoon.moonrise || "-";
-          moonset = dataMoon.moonset  || "-";
-          moonage = dataMoon.age      || "-";
-        } catch (e) {}
+          const r2 = await fetch(`https://eco.mtk.nao.ac.jp/koyomi/api/moonrise_set.php?date=${ds}&lat=${lat}&lon=${lon}`);
+          const j2 = await r2.json();
+          mr = j2.moonrise || "-";
+          ms = j2.moonset || "-";
+          ma = j2.age || "-";
+        } catch {}
 
-        // 表に追加
         tbody.innerHTML += `
           <tr>
-            <td>${datestr}</td>
-            <td>${sunriseJST}</td>
-            <td>${sunsetJST}</td>
-            <td>${daylightHMS}</td>
-            <td>${nightHMS}</td>
-            <td>${moonrise}</td>
-            <td>${moonset}</td>
-            <td>${moonage}</td>
-          </tr>
-        `;
+            <td>${ds}</td><td>${sr}</td><td>${ss}</td><td>${dh}</td><td>${nh}</td><td>${mr}</td><td>${ms}</td><td>${ma}</td>
+          </tr>`;
       }
     };
   </script>
