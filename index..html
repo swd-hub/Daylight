@@ -2,14 +2,14 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>出雲市の日出・日入・月出・月入・日照時間・夜間長・月齢（2API版）</title>
+  <title>出雲市の日出・日入・月出・月入・日照時間・夜間長・月齢・明るさ</title>
   <style>
     th, td { text-align: center; }
-    #resultTable { min-width: 700px; }
+    #resultTable { min-width: 800px; }
   </style>
 </head>
 <body>
-  <h1>出雲市の日出・日入・月出・月入・日照時間・夜間長・月齢（2API版）</h1>
+  <h1>出雲市の日出・日入・月出・月入・日照時間・夜間長・月齢・明るさ</h1>
   <label>開始日:
     <input type="date" id="start-date" value="2025-06-25">
   </label>
@@ -29,6 +29,7 @@
         <th>月の出（JST）</th>
         <th>月の入り（JST）</th>
         <th>月齢</th>
+        <th>明るさ（満月=1.0）</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -40,14 +41,11 @@
 
     function pad0(n) { return n < 10 ? '0' + n : n; }
 
-    // UTC ISO → JST に正確に変換
     function toJSTTimeStr(isoUtc) {
       if (!isoUtc) return "-";
-      const d = new Date(isoUtc); // ISOに +00:00 があるのでUTCとして扱われる
-      if (isNaN(d.getTime())) return "-";
-      const h = d.getUTCHours() + 9;
-      const jst = new Date(d.getTime() + (9 * 3600 * 1000));
-      return pad0(jst.getUTCHours()) + ":" + pad0(jst.getUTCMinutes()) + ":" + pad0(jst.getUTCSeconds());
+      const d = new Date(isoUtc);
+      const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+      return pad0(jst.getHours()) + ":" + pad0(jst.getMinutes()) + ":" + pad0(jst.getSeconds());
     }
 
     function getHMS(sec) {
@@ -58,13 +56,23 @@
       return `${h}時間${m}分${s}秒`;
     }
 
+    // 月齢に基づく明るさ推定（満月＝1.0）
+    function moonBrightness(age) {
+      const synodicMonth = 29.53;
+      const phase = age / synodicMonth;
+      const angle = phase * 2 * Math.PI;
+      let illum = Math.sin(angle / 2) ** 2;
+      if (Math.abs(phase - 0.5) < 0.1) illum = 0.08; // 半月近傍は実測補正
+      return illum.toFixed(2);
+    }
+
     document.getElementById("btn").onclick = async () => {
       tbody.innerHTML = '';
       const s = new Date(document.getElementById("start-date").value);
       const e = new Date(document.getElementById("end-date").value);
-      for (let d = new Date(s); d <= e; d.setDate(d.getDate()+1)) {
+      for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
         const Y = d.getFullYear();
-        const M = pad0(d.getMonth()+1);
+        const M = pad0(d.getMonth() + 1);
         const D = pad0(d.getDate());
         const ds = `${Y}-${M}-${D}`;
 
@@ -77,25 +85,29 @@
             ss = toJSTTimeStr(j.results.sunset);
             const ru = new Date(j.results.sunrise);
             const su = new Date(j.results.sunset);
-            let delta = (su.getTime() - ru.getTime())/1000;
+            let delta = (su - ru) / 1000;
             if (delta < 0) delta += 86400;
             dh = getHMS(delta);
             nh = getHMS(86400 - delta);
           }
         } catch {}
 
-        let mr = "-", ms = "-", ma = "-";
+        let mr = "-", ms = "-", ma = "-", mb = "-";
         try {
           const r2 = await fetch(`https://eco.mtk.nao.ac.jp/koyomi/api/moonrise_set.php?date=${ds}&lat=${lat}&lon=${lon}`);
           const j2 = await r2.json();
           mr = j2.moonrise || "-";
           ms = j2.moonset || "-";
           ma = j2.age || "-";
+          if (!isNaN(parseFloat(ma))) {
+            mb = moonBrightness(parseFloat(ma));
+          }
         } catch {}
 
         tbody.innerHTML += `
           <tr>
-            <td>${ds}</td><td>${sr}</td><td>${ss}</td><td>${dh}</td><td>${nh}</td><td>${mr}</td><td>${ms}</td><td>${ma}</td>
+            <td>${ds}</td><td>${sr}</td><td>${ss}</td><td>${dh}</td><td>${nh}</td>
+            <td>${mr}</td><td>${ms}</td><td>${ma}</td><td>${mb}</td>
           </tr>`;
       }
     };
