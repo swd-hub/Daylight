@@ -40,12 +40,12 @@
 
     function pad0(n) { return n < 10 ? '0' + n : n; }
 
-    // JST変換（ISO8601文字列をJST DateにしてHH:MM:SSで返す）
+    // JST変換（UTC文字列 → JST HH:MM:SS）
     function toJSTTimeStr(dtstr) {
       if (!dtstr) return "-";
-      const date = new Date(dtstr);
-      if (isNaN(date.getTime())) return "-";
-      const jst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+      const utc = new Date(Date.parse(dtstr));
+      if (isNaN(utc.getTime())) return "-";
+      const jst = new Date(utc.getTime() + 9 * 60 * 60 * 1000);
       return pad0(jst.getHours()) + ":" + pad0(jst.getMinutes()) + ":" + pad0(jst.getSeconds());
     }
 
@@ -73,7 +73,7 @@
         const dd = pad0(d.getDate());
         const datestr = `${yyyy}-${mm}-${dd}`;
 
-        // 1. 太陽: Sunrise-Sunset.org API (UTCで返る)
+        // 太陽データ
         let sunriseJST = "-", sunsetJST = "-", daylightHMS = "-", nightHMS = "-";
         try {
           const resSun = await fetch(`https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lon}&date=${datestr}&formatted=0`);
@@ -82,30 +82,28 @@
             sunriseJST = toJSTTimeStr(dataSun.results.sunrise);
             sunsetJST = toJSTTimeStr(dataSun.results.sunset);
 
-            // 日照時間計算
-            const riseDate = new Date(dataSun.results.sunrise);
-            const setDate = new Date(dataSun.results.sunset);
+            const riseDate = new Date(Date.parse(dataSun.results.sunrise));
+            const setDate = new Date(Date.parse(dataSun.results.sunset));
             if (!isNaN(riseDate.getTime()) && !isNaN(setDate.getTime())) {
               let daylightSec = (setDate - riseDate) / 1000;
-              if (daylightSec < 0) daylightSec += 24 * 3600; // まれな極端日長対策
+              if (daylightSec < 0) daylightSec += 24 * 3600;
               daylightHMS = getHMS(daylightSec);
-              nightHMS = getHMS(24*3600 - daylightSec);
+              nightHMS = getHMS(24 * 3600 - daylightSec);
             }
           }
         } catch (e) {}
 
-        // 2. 月: 国立天文台API
+        // 月データ
         let moonrise = "-", moonset = "-", moonage = "-";
         try {
           const resMoon = await fetch(`https://eco.mtk.nao.ac.jp/koyomi/api/moonrise_set.php?date=${datestr}&lat=${lat}&lon=${lon}`);
           const dataMoon = await resMoon.json();
-          // 月の出・月の入りは "hh:mm" JST形式で返る
           moonrise = dataMoon.moonrise || "-";
           moonset = dataMoon.moonset  || "-";
           moonage = dataMoon.age      || "-";
         } catch (e) {}
 
-        // テーブル出力
+        // 表に追加
         tbody.innerHTML += `
           <tr>
             <td>${datestr}</td>
