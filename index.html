@@ -2,6 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <title>出雲市の日出・日入・日照時間</title>
 </head>
 <body>
@@ -14,14 +15,17 @@
 </label>
 <button id="btn">取得</button>
 <pre id="result"></pre>
-
+<canvas id="daylightChart" width="600" height="400"></canvas>
+  
   <script>
-   document.getElementById("btn").addEventListener("click", async () => {
+document.getElementById("btn").addEventListener("click", async () => {
   const startDate = new Date(document.getElementById("start-date").value);
   const endDate = new Date(document.getElementById("end-date").value);
   const lat = 35.3667;
   const lon = 132.75;
   let results = "";
+  let labels = [];
+  let daylightHours = [];
 
   for (
     let d = new Date(startDate);
@@ -35,10 +39,12 @@
       const data = await res.json();
       const sunrise = new Date(data.results.sunrise);
       const sunset = new Date(data.results.sunset);
+
       const formatTime = d =>
         `${d.getHours().toString().padStart(2, '0')}:` +
         `${d.getMinutes().toString().padStart(2, '0')}:` +
         `${d.getSeconds().toString().padStart(2, '0')}`;
+
       const daylightMs = sunset - sunrise;
       const daylightH = Math.floor(daylightMs / (1000 * 60 * 60));
       const daylightM = Math.floor((daylightMs % (1000 * 60 * 60)) / (1000 * 60));
@@ -46,11 +52,40 @@
 
       results +=
         `${dateStr}\n日出（JST）: ${formatTime(sunrise)}\n日入（JST）: ${formatTime(sunset)}\n日照時間: ${daylightH}時間 ${daylightM}分 ${daylightS}秒\n\n`;
+
+      // グラフ用
+      labels.push(dateStr);
+      daylightHours.push((sunset - sunrise) / (1000 * 60 * 60)); // 時間単位(小数)
     } catch (err) {
       results += `${dateStr}\n取得エラー: ${err}\n\n`;
+      labels.push(dateStr);
+      daylightHours.push(null);
     }
   }
   document.getElementById("result").textContent = results;
+
+  // グラフ表示
+  const ctx = document.getElementById('daylightChart').getContext('2d');
+  if(window.daylightChartObj){ window.daylightChartObj.destroy(); } // 二重描画防止
+  window.daylightChartObj = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '日照時間（時間）',
+        data: daylightHours,
+        borderColor: 'orange',
+        backgroundColor: 'rgba(255, 165, 0, 0.2)',
+        spanGaps: true,
+      }]
+    },
+    options: {
+      scales: {
+        x: { title: { display: true, text: '日付' } },
+        y: { title: { display: true, text: '日照時間（時間）' }, min: 0, max: 15 }
+      }
+    }
+  });
 });
   </script>
 </body>
