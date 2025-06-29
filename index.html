@@ -15,6 +15,18 @@
 </label>
 <button id="btn">取得</button>
 <pre id="result"></pre>
+<table id="resultTable" border="1">
+  <thead>
+    <tr>
+      <th>日付</th>
+      <th>日出（JST）</th>
+      <th>日没（JST）</th>
+      <th>日照時間</th>
+      <th>夜間長</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>  
 <canvas id="daylightChart" width="600" height="400"></canvas>
   
   <script>
@@ -87,6 +99,47 @@ document.getElementById("btn").addEventListener("click", async () => {
     }
   });
 });
+const tableBody = document.querySelector('#resultTable tbody');
+tableBody.innerHTML = ""; // 前回の内容をクリア
+
+for (
+  let d = new Date(startDate);
+  d <= endDate;
+  d.setDate(d.getDate() + 1)
+) {
+  const dateStr = d.toISOString().slice(0, 10);
+  // ...API取得部分は省略...
+  // 以下はAPI取得後（try内）の処理例
+
+  // 日照時間（秒単位）
+  const daylightSec = (sunset - sunrise) / 1000;
+  // 夜間長（秒単位）
+  const nightSec = 24 * 60 * 60 - daylightSec;
+
+  // フォーマット関数
+  const formatTime = d =>
+    `${d.getHours().toString().padStart(2, '0')}:` +
+    `${d.getMinutes().toString().padStart(2, '0')}:` +
+    `${d.getSeconds().toString().padStart(2, '0')}`;
+  const formatHMS = sec => {
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = Math.floor(sec % 60);
+    return `${h}時間${m}分${s}秒`;
+  };
+
+  // 行の作成・追加
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td>${dateStr}</td>
+    <td>${formatTime(sunrise)}</td>
+    <td>${formatTime(sunset)}</td>
+    <td>${formatHMS(daylightSec)}</td>
+    <td>${formatHMS(nightSec)}</td>
+  `;
+  tableBody.appendChild(tr);
+}
+    
   </script>
 </body>
 </html>
