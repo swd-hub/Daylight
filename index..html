@@ -55,10 +55,17 @@
   </div>
 
   <script>
-    // JSTで時刻表示
+    // JSTで「YYYY-MM-DD」の0時（日本の標準時）をUTCとして生成
+    function getDateAtJST0(yyyyMMdd) {
+      // yyyyMMddは "2025-06-25" のような文字列
+      // JST0時をUTCで渡す
+      return new Date(`${yyyyMMdd}T00:00:00+09:00`);
+    }
+
+    // JST時刻文字列に整形
     function formatTimeJST(date) {
       if (!date || isNaN(date.getTime())) return "-";
-      // toLocaleStringでJST明示
+      // JSTとして表示
       return date.toLocaleTimeString("ja-JP", { hour12: false });
     }
 
@@ -93,16 +100,17 @@
         d <= endDate;
         d.setDate(d.getDate() + 1)
       ) {
-        // JSTの0時
         const yyyyMMdd = d.toISOString().slice(0, 10);
-        const dateJST = new Date(`${yyyyMMdd}T00:00:00+09:00`);
 
-        // 太陽・月データ
+        // JST0時のDateで計算
+        const dateJST = getDateAtJST0(yyyyMMdd);
+
+        // SunCalcで天文データ
         const sunTimes = SunCalc.getTimes(dateJST, lat, lon);
         const moonTimes = SunCalc.getMoonTimes(dateJST, lat, lon);
         const moonAge = getMoonAge(dateJST);
 
-        // 日の出・日の入り
+        // 日の出・日の入り（SunCalcはローカルタイム返すので、そのままJSTとして表示OK）
         const sunrise = sunTimes.sunrise;
         const sunset  = sunTimes.sunset;
 
@@ -110,11 +118,10 @@
         let daylightSec = (sunrise && sunset) ? (sunset - sunrise) / 1000 : null;
         let nightSec = (daylightSec !== null) ? 24 * 3600 - daylightSec : null;
 
-        // 月の出・月の入り
+        // 月の出・月の入り（同上）
         const moonrise = moonTimes.rise;
         const moonset  = moonTimes.set;
 
-        // テーブル行
         const tr = document.createElement("tr");
         tr.innerHTML = `
           <td>${yyyyMMdd}</td>
@@ -132,7 +139,7 @@
         nightHours.push(nightSec !== null ? (nightSec / 3600) : null);
       }
 
-      // グラフ
+      // Chart.jsグラフ
       const ctx = document.getElementById('daylightChart').getContext('2d');
       if(window.daylightChartObj){ window.daylightChartObj.destroy(); }
       window.daylightChartObj = new Chart(ctx, {
