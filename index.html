@@ -163,7 +163,7 @@ input[type="date"] {
 </style>
 </head>
 <body>
-  <h1>出雲市の日出・日入・夜間長（JST）</h1>
+  <h1>出雲市の日出・日入・夜間長</h1>
   <label>開始日:
     <input type="date" id="start-date" value="2024-12-14">
   </label>
@@ -222,6 +222,7 @@ input[type="date"] {
 
       const startDate = new Date(document.getElementById("start-date").value);
       const endDate = new Date(document.getElementById("end-date").value);
+      //出雲市の緯度経度
       const lat = 35.3667;
       const lon = 132.75;
 
