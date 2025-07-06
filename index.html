@@ -87,6 +87,26 @@ input[type="date"] {
     font-weight: bold;
 }
 
+/* 二至二分テーブル */
+.seasonal-dates {
+  margin: 2em 0;
+  text-align: center;
+}
+#seasonTable {
+  margin: 0 auto;
+  border-collapse: collapse;
+  font-size: 1.05em;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.1);
+}
+#seasonTable th, #seasonTable td {
+  padding: 0.6em 1.2em;
+  border: 1px solid #d0d0e0;
+}
+#seasonTable th {
+  background-color: #e3f3e6;
+  font-weight: bold;
+}
+
 /* グラフエリア */
 .chart-container {
     width: 1100px;
@@ -132,11 +152,6 @@ input[type="date"] {
   100% { transform: rotate(360deg); }
 }
 
-/* ファイルリスト例 */
-#fileList {
-    margin-top: 10px;
-}
-
 /* モバイル対応 */
 @media (max-width: 900px) {
     .flex-area {
@@ -172,6 +187,25 @@ input[type="date"] {
   </label>
   <button id="btn">取得</button>
 
+  <!-- 春分・夏至・秋分・冬至 表 -->
+  <div class="seasonal-dates">
+    <h2>2025年の二至二分の日付</h2>
+    <table id="seasonTable">
+      <thead>
+        <tr>
+          <th>名称</th>
+          <th>日付</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>春分</td><td>3月20日</td></tr>
+        <tr><td>夏至</td><td>6月21日</td></tr>
+        <tr><td>秋分</td><td>9月22日</td></tr>
+        <tr><td>冬至</td><td>12月21日</td></tr>
+      </tbody>
+    </table>
+  </div>
+
   <div class="flex-area">
     <table id="resultTable">
       <thead>
@@ -196,26 +230,21 @@ input[type="date"] {
   </div>
 
   <script>
-    // 本日を取得
     const today = new Date();
-    // 1か月後を取得
     const oneMonthLater = new Date(today);
     oneMonthLater.setMonth(today.getMonth() + 1);
 
-    // yyyy-mm-dd 形式へ変換
     function toYYYYMMDD(date) {
       const offset = date.getTimezoneOffset();
       const localDate = new Date(date.getTime() - (offset * 60 * 1000));
       return localDate.toISOString().slice(0, 10);
     }
 
-    // ページ読み込み時にデフォルト値をセット
     document.addEventListener("DOMContentLoaded", function() {
       document.getElementById("start-date").value = toYYYYMMDD(today);
       document.getElementById("end-date").value = toYYYYMMDD(oneMonthLater);
     });
 
-    // JSTで時刻を表示する関数
     function formatTimeJST(utcISOString) {
       const d = new Date(utcISOString);
       return d.toLocaleTimeString('ja-JP', {
@@ -227,7 +256,6 @@ input[type="date"] {
       });
     }
 
-    // 秒を「◯時間◯分◯秒」に変換
     function formatHMS(sec) {
       const h = Math.floor(sec / 3600);
       const m = Math.floor((sec % 3600) / 60);
@@ -236,28 +264,20 @@ input[type="date"] {
     }
 
     document.getElementById("btn").addEventListener("click", async () => {
-      // ここでローディング表示
       document.getElementById("loadingMessage").style.display = "flex";
 
       const startDate = new Date(document.getElementById("start-date").value);
       const endDate = new Date(document.getElementById("end-date").value);
-      //出雲市の緯度経度
       const lat = 35.3667;
       const lon = 132.75;
 
-      // テーブル用
       const tableBody = document.querySelector('#resultTable tbody');
       tableBody.innerHTML = "";
 
-      // グラフ用
       let labels = [];
       let nightHours = [];
 
-      for (
-        let d = new Date(startDate);
-        d <= endDate;
-        d.setDate(d.getDate() + 1)
-      ) {
+      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
         const dateStr = d.toISOString().slice(0, 10);
         const url = `https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lon}&date=${dateStr}&formatted=0`;
         try {
@@ -265,17 +285,14 @@ input[type="date"] {
           const data = await res.json();
           if (!data.results || !data.results.sunrise || !data.results.sunset) throw new Error('APIレスポンス異常');
 
-          // JSTで表示
           const sunriseJST = formatTimeJST(data.results.sunrise);
           const sunsetJST = formatTimeJST(data.results.sunset);
 
-          // 昼間長・夜間長（秒単位）※差分はUTCでOK
           const sunriseDate = new Date(data.results.sunrise);
           const sunsetDate = new Date(data.results.sunset);
           const daylightSec = (sunsetDate - sunriseDate) / 1000;
           const nightSec = 24 * 60 * 60 - daylightSec;
 
-          // テーブルに追加
           const tr = document.createElement("tr");
           tr.innerHTML = `
             <td>${dateStr}</td>
@@ -286,12 +303,10 @@ input[type="date"] {
           `;
           tableBody.appendChild(tr);
 
-          // グラフ用
           labels.push(dateStr);
-          nightHours.push(Number((nightSec / 3600).toFixed(2))); // 時間単位(小数,小数点2桁)
+          nightHours.push(Number((nightSec / 3600).toFixed(2)));
 
         } catch (err) {
-          // エラー時もテーブルに表示
           const tr = document.createElement("tr");
           tr.innerHTML = `<td colspan="5">${dateStr} 取得エラー: ${err}</td>`;
           tableBody.appendChild(tr);
@@ -300,7 +315,6 @@ input[type="date"] {
         }
       }
 
-      // グラフ表示
       const ctx = document.getElementById('daylightChart').getContext('2d');
       if(window.daylightChartObj){ window.daylightChartObj.destroy(); }
       window.daylightChartObj = new Chart(ctx, {
@@ -341,7 +355,6 @@ input[type="date"] {
         }
       });
 
-      // ローディング非表示
       document.getElementById("loadingMessage").style.display = "none";
     });
   </script>
