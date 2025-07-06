@@ -188,23 +188,31 @@ input[type="date"] {
   <button id="btn">取得</button>
 
   <!-- 春分・夏至・秋分・冬至 表 -->
-  <div class="seasonal-dates">
-    <h2>2025年の二至二分の日付</h2>
-    <table id="seasonTable">
-      <thead>
-        <tr>
-          <th>名称</th>
-          <th>日付</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr><td>春分</td><td>3月20日</td></tr>
-        <tr><td>夏至</td><td>6月21日</td></tr>
-        <tr><td>秋分</td><td>9月22日</td></tr>
-        <tr><td>冬至</td><td>12月21日</td></tr>
-      </tbody>
-    </table>
-  </div>
+<!-- 春分・夏至・秋分・冬至 表（行列反転バージョン） -->
+<div class="seasonal-dates">
+  <h2>2025年の二至二分の日付</h2>
+  <table id="seasonTable">
+    <thead>
+      <tr>
+        <th>名称</th>
+        <th>春分</th>
+        <th>夏至</th>
+        <th>秋分</th>
+        <th>冬至</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>日付</td>
+        <td>3月20日</td>
+        <td>6月21日</td>
+        <td>9月22日</td>
+        <td>12月21日</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
 
   <div class="flex-area">
     <table id="resultTable">
